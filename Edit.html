@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Schiedsrichter Panel</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; margin: 0; }
+    .banner-container { overflow: hidden; background: #eee; white-space: nowrap; }
+    .banner { display: inline-block; padding: 10px; font-weight: bold; animation: scroll 20s linear infinite; }
+    @keyframes scroll { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
+    .person-section { border-top: 1px solid #ccc; padding: 10px; }
+    .card { display: inline-block; width: 60px; height: 60px; line-height: 60px;
+            border-radius: 50%; font-weight: bold; margin: 5px; }
+    .gelb { background: #FFD700; color: black; }
+    .rot { background: #FF4C4C; color: white; }
+    .gruen { background: #4CAF50; color: white; }
+    .button { padding: 8px 16px; margin: 5px; }
+    .top-controls { margin: 10px; }
+  </style>
+</head>
+<body>
+  <div class="banner-container">
+    <div class="banner" id="rankingBanner">Lade Rangliste...</div>
+  </div>
+
+  <div class="top-controls">
+    <input id="newPlayerName" placeholder="Neuer Name" />
+    <button onclick="addPlayer()">➕ Spieler</button>
+    <button onclick="resetAll()">🔄 Zurücksetzen</button>
+  </div>
+
+  <div id="personsContainer"></div>
+
+  <script>
+    let data = JSON.parse(localStorage.getItem("karten_v9") || "{}");
+    if (!data.persons) data.persons = {};
+    let persons = Object.keys(data.persons);
+
+    function save() {
+      localStorage.setItem("karten_v9", JSON.stringify(data));
+    }
+
+    function addPlayer() {
+      const name = document.getElementById("newPlayerName").value.trim();
+      if (!name || data.persons[name]) return;
+      data.persons[name] = { gelb: 0, rot: 0, gruen: 0, doener: 0, totalGelb: 0, totalRot: 0, totalGruen: 0, totalDoener: 0 };
+      persons.push(name);
+      save(); render();
+      document.getElementById("newPlayerName").value = "";
+    }
+
+    function addCard(name, type) {
+      const p = data.persons[name];
+      if (type === "gelb") {
+        p.gelb++; p.totalGelb++;
+        if (p.gelb >= 3) { p.gelb -= 3; addCard(name, "rot"); return; }
+      }
+      if (type === "rot") {
+        p.rot++; p.totalRot++;
+        if (p.rot >= 6) { p.rot = 0; p.doener++; }
+      }
+      if (type === "gruen") { p.gruen++; p.totalGruen++; }
+      save(); render();
+    }
+
+    function doenerBezahlt(name) {
+      const p = data.persons[name];
+      if (p.doener > 0) { p.doener--; p.totalDoener++; save(); render(); }
+    }
+
+    function resetAll() {
+      if (!confirm("Wirklich alles löschen?")) return;
+      data.persons = {};
+      persons = [];
+      save(); render();
+    }
+
+    function render() {
+      const container = document.getElementById("personsContainer");
+      container.innerHTML = "";
+      persons.forEach(name => {
+        const p = data.persons[name];
+        const div = document.createElement("div");
+        div.className = "person-section";
+        div.innerHTML = `
+          <h3>${name}</h3>
+          <div>
+            <div class="card gelb">${p.gelb}</div>
+            <div class="card rot">${p.rot}</div>
+            <div class="card gruen">${p.gruen}</div>
+            <div>🍖 Döner: ${p.doener} | Ödedi: ${p.totalDoener}</div>
+          </div>
+          <button class="button" onclick="addCard('${name}', 'gelb')">Gelb</button>
+          <button class="button" onclick="addCard('${name}', 'rot')">Rot</button>
+          <button class="button" onclick="addCard('${name}', 'gruen')">Grün</button>
+          <button class="button" onclick="doenerBezahlt('${name}')">Döner ödedi</button>
+        `;
+        container.appendChild(div);
+      });
+      updateBanner();
+    }
+
+    function updateBanner() {
+      let bestGelb = { name: "", count: -1 };
+      let bestRot = { name: "", count: -1 };
+      let bestGruen = { name: "", count: -1 };
+      persons.forEach(n => {
+        const p = data.persons[n];
+        if (p.totalGelb > bestGelb.count) bestGelb = { name: n, count: p.totalGelb };
+        if (p.totalRot > bestRot.count) bestRot = { name: n, count: p.totalRot };
+        if (p.totalGruen > bestGruen.count) bestGruen = { name: n, count: p.totalGruen };
+      });
+      document.getElementById("rankingBanner").innerText =
+        `Meiste Gelbe: ${bestGelb.name} (${bestGelb.count}) | Meiste Rote: ${bestRot.name} (${bestRot.count}) | Meiste Grüne: ${bestGruen.name} (${bestGruen.count})`;
+    }
+
+    render();
+  </script>
+</body>
+</html>
