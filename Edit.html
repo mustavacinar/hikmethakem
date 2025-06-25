@@ -1,120 +1,195 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="tr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Schiedsrichter Panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>Hakem Kart Sistemi – Düzenleme</title>
   <style>
-    body { font-family: sans-serif; text-align: center; margin: 0; }
-    .banner-container { overflow: hidden; background: #eee; white-space: nowrap; }
-    .banner { display: inline-block; padding: 10px; font-weight: bold; animation: scroll 20s linear infinite; }
-    @keyframes scroll { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
-    .person-section { border-top: 1px solid #ccc; padding: 10px; }
-    .card { display: inline-block; width: 60px; height: 60px; line-height: 60px;
-            border-radius: 50%; font-weight: bold; margin: 5px; }
-    .gelb { background: #FFD700; color: black; }
-    .rot { background: #FF4C4C; color: white; }
-    .gruen { background: #4CAF50; color: white; }
-    .button { padding: 8px 16px; margin: 5px; }
-    .top-controls { margin: 10px; }
+    body { font-family: sans-serif; text-align: center; margin:0; background:#f5f5f5; }
+    .banner-container { overflow:hidden; background:#eee; white-space:nowrap; }
+    .banner { display:inline-block; padding:10px; font-weight:bold; animation:scroll 20s linear infinite; }
+    @keyframes scroll { from{transform: translateX(100%);} to{transform: translateX(-100%);} }
+    .top-controls, .search-container { margin:10px auto; display:flex; justify-content:center; gap:6px; flex-wrap:wrap; }
+    .top-controls input, .top-controls button, .search-container input { font-size:15px; padding:6px 10px; border:none; border-radius:12px; }
+    .top-controls button { background:#777; color:white; }
+    .person-section { border-top:1px solid #ccc; padding:6px; font-size:14px; position:relative; }
+    .card { display:inline-block; width:45px; height:45px; line-height:45px; border-radius:50%; font-weight:bold; margin:2px; font-size:14px; }
+    .gelb { background:#FFD700; color:black; } .rot { background:#E53935; color:white; } .gruen { background:#43A047; color:white; }
+    .button { font-size:14px; padding:6px 12px; margin:2px; border:none; border-radius:12px; background:#888; color:white; }
+    .trash { position:absolute; right:8px; top:8px; cursor:pointer; font-size:18px; }
+    #overlay, #leaderboardModal { display:none; position:fixed; }
+    #overlay { top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,0.3); z-index:999; }
+    #leaderboardModal { top:10%; left:50%; transform:translateX(-50%); background:white; padding:10px; width:90%; max-width:400px; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.2); z-index:1000; }
   </style>
 </head>
 <body>
-  <div class="banner-container">
-    <div class="banner" id="rankingBanner">Lade Rangliste...</div>
-  </div>
-
+  <div class="banner-container"><div class="banner" id="rankingBanner">Yükleniyor...</div></div>
   <div class="top-controls">
-    <input id="newPlayerName" placeholder="Neuer Name" />
-    <button onclick="addPlayer()">➕ Spieler</button>
-    <button onclick="resetAll()">🔄 Zurücksetzen</button>
+    <input id="newPlayerName" placeholder="Yeni İsim" />
+    <button onclick="addPlayer()">➕ Ekle</button>
+    <button onclick="resetCards()">🔄 Sıfırla</button>
+    <button onclick="exportCSV()">CSV</button>
+    <button onclick="undo()">⏪ Geri Al</button>
+    <button onclick="showLeaderboard()">🏆 Sıralama</button>
   </div>
-
+  <div class="search-container">
+    <input id="searchInput" placeholder="🔍 Oyuncu ara..." oninput="render()" />
+  </div>
   <div id="personsContainer"></div>
+  <div id="overlay" onclick="hideLeaderboard()"></div>
+  <div id="leaderboardModal"><h3>🏆 Kart Bazlı Sıralama</h3><div id="leaderboardContent"></div><button onclick="hideLeaderboard()">Kapat</button></div>
+  
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
   <script>
-    let data = JSON.parse(localStorage.getItem("karten_v9") || "{}");
-    if (!data.persons) data.persons = {};
-    let persons = Object.keys(data.persons);
+    // === Firebase Setup: Füge deine Config hier ein ===
+    const firebaseConfig = {
+      apiKey: "DEIN_API_KEY",
+      authDomain: "...",
+      databaseURL: "https://deinprojekt.firebaseio.com",
+      projectId: "deinprojekt",
+      storageBucket: "...",
+      messagingSenderId: "...",
+      appId: "..."
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    
+    let data = { persons: {} }, persons = [], lastAction = null;
+    
+    // Daten vom Cloud laden:
+    db.ref('kartendaten').on('value', snap => {
+      const d = snap.val();
+      if (d) data = d;
+      init();
+    });
 
-    function save() {
-      localStorage.setItem("karten_v9", JSON.stringify(data));
-    }
-
-    function addPlayer() {
-      const name = document.getElementById("newPlayerName").value.trim();
-      if (!name || data.persons[name]) return;
-      data.persons[name] = { gelb: 0, rot: 0, gruen: 0, doener: 0, totalGelb: 0, totalRot: 0, totalGruen: 0, totalDoener: 0 };
-      persons.push(name);
-      save(); render();
-      document.getElementById("newPlayerName").value = "";
-    }
-
-    function addCard(name, type) {
-      const p = data.persons[name];
-      if (type === "gelb") {
-        p.gelb++; p.totalGelb++;
-        if (p.gelb >= 3) { p.gelb -= 3; addCard(name, "rot"); return; }
+    function init(){
+      if (!data.persons || Object.keys(data.persons).length === 0){
+        data.persons = {"Hilal Hanım":cz(),"Medine Hanım":cz(),"Beyzanur Hanım":cz(),"Mustafa Bey":cz()};
       }
-      if (type === "rot") {
-        p.rot++; p.totalRot++;
-        if (p.rot >= 6) { p.rot = 0; p.doener++; }
-      }
-      if (type === "gruen") { p.gruen++; p.totalGruen++; }
+      persons = Object.keys(data.persons);
       save(); render();
     }
+    function cz(){return {gelb:0,rot:0,gruen:0,doener:0,totalGelb:0,totalRot:0,totalGruen:0,totalDoener:0};}
 
-    function doenerBezahlt(name) {
+    function save(){
+      db.ref('kartendaten').set(data);
+    }
+
+    function addPlayer(){
+      const name = document.getElementById("newPlayerName").value.trim(); if(!name||data.persons[name])return;
+      data.persons[name] = cz();
+      persons.push(name); save(); render();
+      document.getElementById("newPlayerName").value="";
+    }
+    function addCard(name, type){
       const p = data.persons[name];
-      if (p.doener > 0) { p.doener--; p.totalDoener++; save(); render(); }
-    }
-
-    function resetAll() {
-      if (!confirm("Wirklich alles löschen?")) return;
-      data.persons = {};
-      persons = [];
+      lastAction = { name, type };
+      if(type==="gelb"){p.gelb++;p.totalGelb++;if(p.gelb>=3){p.gelb-=3;addCard(name,"rot");return;}}
+      if(type==="rot"){p.rot++;p.totalRot++;if(p.rot>=6){p.rot=0;p.doener++;}}
+      if(type==="gruen"){p.gruen++;p.totalGruen++;}
       save(); render();
     }
-
-    function render() {
-      const container = document.getElementById("personsContainer");
-      container.innerHTML = "";
-      persons.forEach(name => {
-        const p = data.persons[name];
-        const div = document.createElement("div");
-        div.className = "person-section";
+    function undo(){
+      if(!lastAction)return;
+      const {name,type}=lastAction; const p=data.persons[name];
+      if(type==="gelb"&&p.gelb>0){p.gelb--;p.totalGelb--;}
+      if(type==="rot"&&p.rot>0){p.rot--;p.totalRot--;}
+      if(type==="gruen"&&p.gruen>0){p.gruen--;p.totalGruen--;}
+      lastAction=null; save(); render();
+    }
+    function deletePlayer(name){
+      if(confirm(`"${name}" silinsin mi?`)){delete data.persons[name]; persons = Object.keys(data.persons); save(); render();}
+    }
+    function doenerBezahlt(name){
+      const p=data.persons[name];
+      if(p.doener>0){p.doener--;p.totalDoener++;save();render();}
+    }
+    function resetCards(){
+      if(confirm("Kartlar sıfırlansın mı?")){
+        persons.forEach(n=>{const p=data.persons[n];p.gelb=0;p.rot=0;p.gruen=0;p.doener=0;});
+        save(); render();
+      }
+    }
+    function render(){
+      const s=document.getElementById("searchInput").value.trim().toLowerCase(), c=document.getElementById("personsContainer");
+      c.innerHTML=""; persons=Object.keys(data.persons);
+      persons.forEach(n=>{
+        if(s && !n.toLowerCase().includes(s))return;
+        const p=data.persons[n];
+        const div=document.createElement("div"); div.className="person-section";
         div.innerHTML = `
-          <h3>${name}</h3>
+          <span class="trash" onclick="deletePlayer('${n}')">🗑️</span>
+          <h3>${n}</h3>
           <div>
             <div class="card gelb">${p.gelb}</div>
             <div class="card rot">${p.rot}</div>
             <div class="card gruen">${p.gruen}</div>
             <div>🍖 Döner: ${p.doener} | Ödedi: ${p.totalDoener}</div>
           </div>
-          <button class="button" onclick="addCard('${name}', 'gelb')">Gelb</button>
-          <button class="button" onclick="addCard('${name}', 'rot')">Rot</button>
-          <button class="button" onclick="addCard('${name}', 'gruen')">Grün</button>
-          <button class="button" onclick="doenerBezahlt('${name}')">Döner ödedi</button>
+          <button class="button" onclick="addCard('${n}','gelb')">Sarı</button>
+          <button class="button" onclick="addCard('${n}','rot')">Kırmızı</button>
+          <button class="button" onclick="addCard('${n}','gruen')">Yeşil</button>
+          <button class="button" onclick="doenerBezahlt('${n}')">Döner ödedi</button>
         `;
-        container.appendChild(div);
+        c.appendChild(div);
       });
       updateBanner();
     }
-
-    function updateBanner() {
-      let bestGelb = { name: "", count: -1 };
-      let bestRot = { name: "", count: -1 };
-      let bestGruen = { name: "", count: -1 };
-      persons.forEach(n => {
-        const p = data.persons[n];
-        if (p.totalGelb > bestGelb.count) bestGelb = { name: n, count: p.totalGelb };
-        if (p.totalRot > bestRot.count) bestRot = { name: n, count: p.totalRot };
-        if (p.totalGruen > bestGruen.count) bestGruen = { name: n, count: p.totalGruen };
+    function updateBanner(){
+      let totalS=0,totalR=0,totalY=0,topS=["",0],topR=["",0],topY=["",0];
+      persons.forEach(n=>{
+        const p=data.persons[n];
+        totalS+=p.totalGelb; totalR+=p.totalRot; totalY+=p.totalGruen;
+        if(p.totalGelb>topS[1])topS=[n,p.totalGelb];
+        if(p.totalRot>topR[1])topR=[n,p.totalRot];
+        if(p.totalGruen>topY[1])topY=[n,p.totalGruen];
       });
-      document.getElementById("rankingBanner").innerText =
-        `Meiste Gelbe: ${bestGelb.name} (${bestGelb.count}) | Meiste Rote: ${bestRot.name} (${bestRot.count}) | Meiste Grüne: ${bestGruen.name} (${bestGruen.count})`;
+      document.getElementById("rankingBanner").innerText=
+        `Top Sarı: ${topS[0]} (${topS[1]}) | Kırmızı: ${topR[0]} (${topR[1]}) | Yeşil: ${topY[0]} (${topY[1]})`;
     }
-
+    function showLeaderboard(){
+      let s=0,r=0,y=0,topS=["",0],topR=["",0],topY=["",0],topD=["",0];
+      persons.forEach(n=>{
+        const p=data.persons[n];
+        s+=p.totalGelb; r+=p.totalRot; y+=p.totalGruen;
+        if(p.totalGelb>topS[1])topS=[n,p.totalGelb];
+        if(p.totalRot>topR[1])topR=[n,p.totalRot];
+        if(p.totalGruen>topY[1])topY=[n,p.totalGruen];
+        if(p.totalDoener>topD[1])topD=[n,p.totalDoener];
+      });
+      document.getElementById("leaderboardContent").innerHTML=`
+        <div><strong>Top Sarı:</strong> ${topS[0]} (${topS[1]})</div>
+        <div><strong>Top Kırmızı:</strong> ${topR[0]} (${topR[1]})</div>
+        <div><strong>Top Yeşil:</strong> ${topY[0]} (${topY[1]})</div>
+        <div><strong>Top Döner Ödedi:</strong> ${topD[0]} (${topD[1]})</div><hr/>
+        <div><strong>Toplam Sarı:</strong> ${s}</div>
+        <div><strong>Toplam Kırmızı:</strong> ${r}</div>
+        <div><strong>Toplam Yeşil:</strong> ${y}</div>`;
+      document.getElementById("overlay").style.display="block";
+      document.getElementById("leaderboardModal").style.display="block";
+    }
+    function hideLeaderboard(){
+      document.getElementById("overlay").style.display="none";
+      document.getElementById("leaderboardModal").style.display="none";
+    }
+    function exportCSV(){
+      const rows=[["İsim","Sarı","Kırmızı","Yeşil","Döner","Toplam Sarı","Toplam Kırmızı","Toplam Yeşil","Toplam Döner"]];
+      persons.forEach(n=>{
+        const p=data.persons[n];
+        rows.push([n,p.gelb,p.rot,p.gruen,p.doener,p.totalGelb,p.totalRot,p.totalGruen,p.totalDoener]);
+      });
+      const csv=rows.map(r=>r.join(";")).join("\n");
+      const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"}), url=URL.createObjectURL(blob);
+      const a=document.createElement("a");
+      a.href=url; a.download="kartlar.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
     render();
   </script>
 </body>
