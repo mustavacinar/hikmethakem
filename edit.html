@@ -160,15 +160,6 @@
       padding: 6px 14px;
       cursor: pointer;
     }
-    .name-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0 12px;
-    }
-    .name-row h3 {
-      margin: 0;
-    }
   </style>
 </head>
 <body>
@@ -209,6 +200,7 @@
 
   <!-- JavaScript -->
   <!-- Der gesamte JS-Code kommt im nächsten Post, wenn du willst -->
+
 <script>
   const firebaseConfig = {
     apiKey: "AIzaSyDdFkQi5D_4-zxVWCYxozq1XccBP9uoN6g",
@@ -343,10 +335,8 @@
       const div = document.createElement("div");
       div.className = "person-section";
       div.innerHTML = `
-        <div class="name-row">
-          <h3>${n}</h3>
-          <span class="trash" onclick="deletePlayer('${n}')">🗑️</span>
-        </div>
+        <span class="trash" onclick="deletePlayer('${n}')">🗑️</span>
+        <h3>${n}</h3>
         <div>
           <div class="card gelb">${p.gelb}</div>
           <div class="card rot">${p.rot}</div>
