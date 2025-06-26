@@ -4,18 +4,103 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <title>Hakem Kart Sistemi – Görüntüleme</title>
+  <link href="https://fonts.googleapis.com/css2?family=Scheherazade+New&display=swap" rel="stylesheet">
   <style>
-    body { font-family: sans-serif; text-align:center; margin:0; background:#fafafa; }
-    .banner-container { overflow:hidden; background:#eee; white-space:nowrap; }
-    .banner { display:inline-block; padding:10px; font-weight:bold; animation:scroll 20s linear infinite; }
-    @keyframes scroll { from{transform:translateX(100%);} to{transform:translateX(-100%);} }
-    .person-section { border-top:1px solid #ccc; padding:10px; font-size:14px; }
-    .card { display:inline-block; width:45px; height:45px; line-height:45px; border-radius:50%; font-weight:bold; margin:2px; font-size:14px; }
-    .gelb{background:#FFD700;color:black;} .rot{background:#E53935;color:white;} .gruen{background:#43A047;color:white;}
-    .leaderboard-btn { position:fixed; bottom:10px; right:10px; padding:10px 15px; background:#666; color:#fff; border:none; border-radius:12px; font-size:14px; z-index:999; }
-    #overlay, #leaderboardModal { display:none; position:fixed; }
-    #overlay { top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,0.3); z-index:998; }
-    #leaderboardModal { top:10%; left:50%; transform:translateX(-50%); background:white; padding:12px; width:90%; max-width:400px; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.2); z-index:1000; text-align:left; }
+    body {
+      font-family: 'Scheherazade New', serif;
+      margin: 0;
+      background: #fdf6ec;
+      color: #333;
+      text-align: center;
+    }
+
+    .banner-container {
+      overflow: hidden;
+      background: url('https://upload.wikimedia.org/wikipedia/commons/4/4d/Islamic_Pattern.svg');
+      background-size: cover;
+      background-repeat: repeat;
+      white-space: nowrap;
+      padding: 10px 0;
+    }
+
+    .banner {
+      display: inline-block;
+      font-weight: bold;
+      animation: scroll 20s linear infinite;
+      color: #004d4d;
+      font-size: 16px;
+    }
+
+    @keyframes scroll {
+      from { transform: translateX(100%); }
+      to { transform: translateX(-100%); }
+    }
+
+    .person-section {
+      border-top: 1px solid #ccc;
+      padding: 10px;
+      font-size: 14px;
+    }
+
+    .card {
+      display: inline-block;
+      width: 45px;
+      height: 45px;
+      line-height: 45px;
+      border-radius: 50%;
+      font-weight: bold;
+      margin: 2px;
+      font-size: 14px;
+    }
+
+    .gelb { background: #FFD700; color: black; }
+    .rot { background: #E53935; color: white; }
+    .gruen { background: #43A047; color: white; }
+
+    .leaderboard-btn {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      padding: 10px 15px;
+      background: #4aa6a6;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      z-index: 999;
+    }
+
+    #overlay, #leaderboardModal {
+      display: none;
+      position: fixed;
+    }
+
+    #overlay {
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.3);
+      z-index: 998;
+    }
+
+    #leaderboardModal {
+      top: 10%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      padding: 12px;
+      width: 90%;
+      max-width: 400px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      z-index: 1000;
+      text-align: left;
+    }
+
+    footer {
+      margin-top: 30px;
+      font-size: 12px;
+      color: #666;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
@@ -24,6 +109,7 @@
   </div>
 
   <div id="personsContainer"></div>
+
   <button class="leaderboard-btn" onclick="showLeaderboard()">🏆</button>
 
   <div id="overlay" onclick="hideLeaderboard()"></div>
@@ -32,6 +118,8 @@
     <div id="leaderboardContent"></div>
     <button onclick="hideLeaderboard()">Kapat</button>
   </div>
+
+  <footer>Adalet mülkün temelidir.</footer>
 
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
@@ -47,6 +135,7 @@
       messagingSenderId: "941518144701",
       appId: "1:941518144701:web:072ed142fa0bd0d37963d4"
     };
+
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
@@ -59,15 +148,16 @@
       let totalGelb=0,totalRot=0,totalGruen=0, topGelb=["",0],topRot=["",0],topGruen=["",0];
 
       persons.forEach(n=>{
-        const p=data.persons[n];
-        totalGelb+=p.totalGelb;
-        totalRot+=p.totalRot;
-        totalGruen+=p.totalGruen;
-        if(p.totalGelb>topGelb[1]) topGelb=[n,p.totalGelb];
-        if(p.totalRot>topRot[1]) topRot=[n,p.totalRot];
-        if(p.totalGruen>topGruen[1]) topGruen=[n,p.totalGruen];
+        const p = data.persons[n];
+        totalGelb += p.totalGelb;
+        totalRot += p.totalRot;
+        totalGruen += p.totalGruen;
+        if(p.totalGelb > topGelb[1]) topGelb = [n, p.totalGelb];
+        if(p.totalRot > topRot[1]) topRot = [n, p.totalRot];
+        if(p.totalGruen > topGruen[1]) topGruen = [n, p.totalGruen];
+
         const div = document.createElement("div");
-        div.className="person-section";
+        div.className = "person-section";
         div.innerHTML = `
           <h3>${n}</h3>
           <div>
@@ -83,7 +173,7 @@
       document.getElementById("rankingBanner").innerText =
         `Top Sarı: ${topGelb[0]} (${topGelb[1]}) | Kırmızı: ${topRot[0]} (${topRot[1]}) | Yeşil: ${topGruen[0]} (${topGruen[1]})`;
 
-      leaderboardHTML = `
+      const leaderboardHTML = `
         <div><strong>Top Sarı:</strong> ${topGelb[0]} (${topGelb[1]})</div>
         <div><strong>Top Kırmızı:</strong> ${topRot[0]} (${topRot[1]})</div>
         <div><strong>Top Yeşil:</strong> ${topGruen[0]} (${topGruen[1]})</div><hr/>
@@ -97,6 +187,7 @@
       document.getElementById("overlay").style.display = "block";
       document.getElementById("leaderboardModal").style.display = "block";
     }
+
     function hideLeaderboard() {
       document.getElementById("overlay").style.display = "none";
       document.getElementById("leaderboardModal").style.display = "none";
