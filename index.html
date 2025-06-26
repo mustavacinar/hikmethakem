@@ -85,6 +85,7 @@
       border-radius: 12px;
       font-size: 14px;
       z-index: 999;
+      cursor: pointer;
     }
 
     #overlay, #leaderboardModal {
@@ -110,6 +111,17 @@
       box-shadow: 0 0 10px rgba(0,0,0,0.2);
       z-index: 1000;
       text-align: left;
+    }
+
+    #leaderboardModal button {
+      margin-top: 12px;
+      background: #4aa6a6;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
     }
 
     footer {
@@ -138,6 +150,11 @@
     <button onclick="hideLeaderboard()">Kapat</button>
   </div>
 
+  <div id="popupDoener" style="display:none; position:fixed; top:30%; left:50%; transform:translate(-50%,-50%); background:white; border:2px solid #e53935; padding:20px; border-radius:10px; box-shadow:0 0 12px rgba(0,0,0,0.2); z-index:2000; font-size:16px;">
+    🍖 <b>Döner zamanı!</b><br/>Bir kişi 6 kırmızı karta ulaştı!<br/><br/>
+    <button onclick="document.getElementById('popupDoener').style.display='none'" style="margin-top:10px; background:#e53935; color:white; border:none; padding:6px 12px; border-radius:6px; cursor:pointer;">Tamam</button>
+  </div>
+
   <footer>Adalet mülkün temelidir.</footer>
 
   <!-- Firebase SDK -->
@@ -158,22 +175,33 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
+    let popupShown = false;
+
     db.ref('kartendaten').on('value', snap => {
       const data = snap.val();
       if (!data || !data.persons) return;
       const persons = Object.keys(data.persons);
       const c = document.getElementById("personsContainer");
       c.innerHTML = "";
-      let totalGelb=0,totalRot=0,totalGruen=0, topGelb=["",0],topRot=["",0],topGruen=["",0];
+      let totalGelb = 0, totalRot = 0, totalGruen = 0;
+      let topGelb = ["", 0], topRot = ["", 0], topGruen = ["", 0];
 
       persons.forEach(n => {
         const p = data.persons[n];
+
+        if (!popupShown && p.totalRot >= 6) {
+          popupShown = true;
+          setTimeout(() => {
+            document.getElementById("popupDoener").style.display = "block";
+          }, 300);
+        }
+
         totalGelb += p.totalGelb;
         totalRot += p.totalRot;
         totalGruen += p.totalGruen;
-        if(p.totalGelb > topGelb[1]) topGelb = [n, p.totalGelb];
-        if(p.totalRot > topRot[1]) topRot = [n, p.totalRot];
-        if(p.totalGruen > topGruen[1]) topGruen = [n, p.totalGruen];
+        if (p.totalGelb > topGelb[1]) topGelb = [n, p.totalGelb];
+        if (p.totalRot > topRot[1]) topRot = [n, p.totalRot];
+        if (p.totalGruen > topGruen[1]) topGruen = [n, p.totalGruen];
 
         const div = document.createElement("div");
         div.className = "person-section";
