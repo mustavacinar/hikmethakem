@@ -413,31 +413,15 @@
     a.click();
     document.body.removeChild(a);
   }
-
-  render();
 </script>
   
-  <!-- PIN-Overlay -->
-<div id="pinOverlay" style="
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center;
-  z-index: 9999; flex-direction: column; color: white; font-family: system-ui, sans-serif;">
-  <h2>PIN Girişi</h2>
-  <input id="pinInput" type="password" maxlength="4" disabled style="font-size: 28px; text-align: center; width: 120px; margin-bottom: 20px; border-radius: 8px; border: none; padding: 8px;" />
-  <div style="display: grid; grid-template-columns: repeat(3, 60px); gap: 10px;">
-    ${[1,2,3,4,5,6,7,8,9,"",0,"←"].map(key => 
-      `<button onclick="pressKey('${key}')" style="font-size: 20px; height: 60px; border-radius: 10px; border: none; background: #4aa6a6; color: white;">${key}</button>`
-    ).join('')}
-  </div>
-</div>
-
 <!-- PIN-Overlay -->
 <div id="pinOverlay" style="
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
   background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center;
   z-index: 9999; flex-direction: column; color: white; font-family: system-ui, sans-serif;">
   <h2>PIN Girişi</h2>
-  <input id="pinInput" type="password" maxlength="4" disabled
+  <input id="pinInput" type="password" maxlength="4" readonly
          style="font-size: 28px; text-align: center; width: 120px; margin: 20px 0; border-radius: 8px; border: none; padding: 8px;" />
   <div id="numpad" style="display: grid; grid-template-columns: repeat(3, 60px); gap: 10px;"></div>
 </div>
@@ -445,8 +429,9 @@
 <script>
   const pin = "4746";
   let enteredPin = "";
+  let accessGranted = false;
 
-  // Tastatur generieren
+  // Numpad erstellen
   const keys = [1, 2, 3, 4, 5, 6, 7, 8, 9, "", 0, "←"];
   const numpad = document.getElementById("numpad");
 
@@ -469,20 +454,28 @@
       if (enteredPin.length < 4) enteredPin += key;
     }
 
-    document.getElementById("pinInput").value = enteredPin;
+    document.getElementById("pinInput").value = "•".repeat(enteredPin.length);
 
     if (enteredPin.length === 4) {
-      if (enteredPin === pin) {
-        document.getElementById("pinOverlay").style.display = "none";
-      } else {
-        alert("❌ Yanlış PIN!");
-        enteredPin = "";
-        document.getElementById("pinInput").value = "";
-      }
+      setTimeout(validatePin, 150); // kleine Verzögerung für visuelles Feedback
+    }
+  }
+
+  function validatePin() {
+    if (enteredPin === pin) {
+      accessGranted = true;
+      document.getElementById("pinOverlay").style.display = "none";
+      // Jetzt erst rendern/starten:
+      if (typeof render === "function") render();
+    } else {
+      alert("❌ Yanlış PIN!");
+      enteredPin = "";
+      document.getElementById("pinInput").value = "";
     }
   }
 
   window.onload = () => {
+    // nichts laden/rendern bis PIN korrekt
     document.getElementById("pinOverlay").style.display = "flex";
   };
 </script>
